@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 
@@ -118,14 +119,25 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	external, err := net.Dial("tcp", "mqtt001.solaxcloud.com:2901")
+	if err != nil {
+		panic(err)
+	}
 ConnectLoop:
 	for {
 		conn, err := dataListener.Accept()
 		if err != nil {
 			panic(err)
 		}
+		go func(conn io.Writer, external io.Reader) {
+			_, err := io.Copy(conn, external)
+			if err != nil {
+				panic(err)
+			}
+		}(conn, external)
 		defer conn.Close()
 		buffer := bufio.NewReader(conn)
+		writeBuffer := bufio.NewWriter(external)
 		for {
 			for {
 				b, err := buffer.ReadByte()
@@ -139,11 +151,13 @@ ConnectLoop:
 					}
 					break
 				}
+				writeBuffer.WriteByte(b)
 			}
 			jsonData, err := buffer.ReadBytes('}')
 			if err != nil {
 				continue
 			}
+			writeBuffer.Write(jsonData)
 			var data jsonResult
 			if err := json.Unmarshal(jsonData, &data); err != nil {
 				fmt.Println("Invalid packet.")
