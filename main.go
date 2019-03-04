@@ -117,37 +117,44 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	conn, err := dataListener.Accept()
-	buffer := bufio.NewReader(conn)
+ConnectLoop:
 	for {
-		for {
-			b, err := buffer.ReadByte()
-			if err != nil {
-				panic(err)
-			}
-			if b == '{' {
-				err = buffer.UnreadByte()
-				if err != nil {
-					panic(err)
-				}
-				break
-			}
-		}
-		jsonData, err := buffer.ReadBytes('}')
+		conn, err := dataListener.Accept()
 		if err != nil {
 			panic(err)
 		}
-		var data jsonResult
-		if err := json.Unmarshal(jsonData, &data); err != nil {
-			fmt.Println("Invalid packet.")
-			continue
-		}
-		setMeasurements(data.Data)
-		fmt.Printf("Total: %v\n", TotalEnergyValue)
-		if !started {
-			fmt.Println("Starting server")
-			go server.Serve(promListener)
-			started = true
+		defer conn.Close()
+		buffer := bufio.NewReader(conn)
+		for {
+			for {
+				b, err := buffer.ReadByte()
+				if err != nil {
+					continue ConnectLoop
+				}
+				if b == '{' {
+					err = buffer.UnreadByte()
+					if err != nil {
+						continue ConnectLoop
+					}
+					break
+				}
+			}
+			jsonData, err := buffer.ReadBytes('}')
+			if err != nil {
+				continue
+			}
+			var data jsonResult
+			if err := json.Unmarshal(jsonData, &data); err != nil {
+				fmt.Println("Invalid packet.")
+				continue
+			}
+			setMeasurements(data.Data)
+			fmt.Printf("Total: %v\n", TotalEnergyValue)
+			if !started {
+				fmt.Println("Starting server")
+				go server.Serve(promListener)
+				started = true
+			}
 		}
 	}
 }
