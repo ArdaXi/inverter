@@ -61,11 +61,10 @@ var (
 			Help: "Current frequency detected in the grid.",
 		},
 	)
-	Measuring = true
+	Measuring = false
 )
 
 func init() {
-	Registry.MustRegister(InputCurrent, InputVoltage, OutputCurrent, OutputVoltage, OutputPower, TotalEnergy, Frequency)
 }
 
 // {"type":"X1-Boost-Air-Mini","SN":"SWNBHLDR9Q","ver":"2.32.6","Data":[0.6,0.6,203.8,200.7,1.5,236.3,238,33,3.2,6.7,0,142,129,0.00,0.00,0,0,0,0.0,0.0,0.00,0.00,0,0,0,0.0,0.0,0.00,0.00,0,0,0,0.0,0.0,0,0,0,0,0,0,0,0.00,0.00,0,0,0,0,0,0,0,49.98,0,0,0,0,0,0,0,0,0,0.00,0,8,0,0,0.00,0,8,2],"Information":[3.680,4,"X1-Boost-Air-Mini","XB362188276114",1,3.25,1.09,1.12,0.00]}
@@ -113,6 +112,8 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
+	fmt.Println("Starting server")
+	go server.Serve(promListener)
 	dataListener, err := net.ListenTCP("tcp4", &net.TCPAddr{IP: net.IPv4(0, 0, 0, 0), Port: 2901})
 	if err != nil {
 		panic(err)
@@ -148,13 +149,12 @@ ConnectLoop:
 				fmt.Println("Invalid packet.")
 				continue
 			}
-			setMeasurements(data.Data)
-			fmt.Printf("Total: %v\n", TotalEnergyValue)
 			if !started {
-				fmt.Println("Starting server")
-				go server.Serve(promListener)
+				Registry.MustRegister(InputCurrent, InputVoltage, OutputCurrent, OutputPower)
 				started = true
 			}
+			setMeasurements(data.Data)
+			fmt.Printf("Total: %v\n", TotalEnergyValue)
 		}
 	}
 }
