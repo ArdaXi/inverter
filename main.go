@@ -61,7 +61,7 @@ var (
 			Help: "Current frequency detected in the grid.",
 		},
 	)
-	Measuring = false
+	Measuring = true
 )
 
 func init() {
